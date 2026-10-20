@@ -35,9 +35,6 @@ namespace Prosenter
                 Presentation_Number.FontSize = (double)Presentation_FontSize.Value * 0.4;
                 Presentation_Text.StrokeThickness = (double)Presentation_FontSize.Value * 0.05;
                 Presentation_Number.StrokeThickness = (double)Presentation_FontSize.Value * 0.05;
-                Presentation_StrokeColorPicker.SelectedColor = Colors.White;
-                Presentation_Text.Stroke = new SolidColorBrush(Colors.White);
-                Presentation_Number.Stroke = new SolidColorBrush(Colors.White);
             }
         }
 
@@ -53,20 +50,20 @@ namespace Prosenter
 
         private void Presentation_FontColorPicker_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
         {
-            if (Presentation_FontColorPicker != null && Presentation_Text != null)
+            if (Presentation_FontColorPicker?.SelectedColor is Color color && Presentation_Text != null)
             {
                 //Set the text color
-                Presentation_Text.Fill = new SolidColorBrush(Presentation_FontColorPicker.SelectedColor.Value);
-                Presentation_Number.Fill = new SolidColorBrush(Presentation_FontColorPicker.SelectedColor.Value);
+                Presentation_Text.Fill = new SolidColorBrush(color);
+                Presentation_Number.Fill = new SolidColorBrush(color);
             }
         }
 
         private void Presentation_StrokeColorPicker_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
         {
-            if (Presentation_StrokeColorPicker != null &&  Presentation_Text != null)
+            if (Presentation_StrokeColorPicker?.SelectedColor is Color color && Presentation_Text != null)
             {
-                Presentation_Text.Stroke = new SolidColorBrush(Presentation_StrokeColorPicker.SelectedColor.Value);
-                Presentation_Number.Stroke = new SolidColorBrush(Presentation_StrokeColorPicker.SelectedColor.Value);
+                Presentation_Text.Stroke = new SolidColorBrush(color);
+                Presentation_Number.Stroke = new SolidColorBrush(color);
             }
         }
 
