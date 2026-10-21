@@ -54,11 +54,11 @@ namespace Prosenter
         }
         public class PresentationItem
         {
-            public string? Number { get; set; }
-            public string? Title { get; set; }
-            public string? Notes { get; set; }
+            public string Number { get; set; }
+            public string Title { get; set; }
+            public string Notes { get; set; }
 
-            public PresentationItem(string? number, string? title, string? notes)
+            public PresentationItem(string number, string title, string notes)
             {
                 Number = number;
                 Title = title;
@@ -97,36 +97,30 @@ namespace Prosenter
 
         public void cycleUp()
         {
-            if (PresentationItems != null)
+            if (PresentationItems != null && PresentationItems.Count > 0)
             {
+                //wrap around to the last title
                 var nextpick = Main_ItemsList.SelectedIndex - 1;
                 if (nextpick < 0)
                 {
-                    nextpick = Main_ItemsList.Items.Count;
-                    Main_ItemsList.SelectedIndex = nextpick;
+                    nextpick = Main_ItemsList.Items.Count - 1;
                 }
-                else
-                {
-                    Main_ItemsList.SelectedIndex = nextpick;
-                }
+                Main_ItemsList.SelectedIndex = nextpick;
             }
             TitleSwitch();
         }
 
         public void cycleDown()
         {
-            if (PresentationItems != null)
+            if (PresentationItems != null && PresentationItems.Count > 0)
             {
+                //wrap around to the first title
                 var nextpick = Main_ItemsList.SelectedIndex + 1;
-                if (nextpick > Main_ItemsList.Items.Count)
+                if (nextpick >= Main_ItemsList.Items.Count)
                 {
                     nextpick = 0;
-                    Main_ItemsList.SelectedIndex = 0;
                 }
-                else
-                {
-                    Main_ItemsList.SelectedIndex = nextpick;
-                }
+                Main_ItemsList.SelectedIndex = nextpick;
             }
             TitleSwitch();
         }
@@ -136,82 +130,61 @@ namespace Prosenter
             if (status != "Stopped")
             {
                 Xceed.Wpf.Toolkit.MessageBox.Show("Please stop the presentation before loading a new file");
+                return;
             }
-            else
+
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
+            openFileDialog.InitialDirectory = "c:\\";
+            openFileDialog.Filter = "CSV files (Comma delimited)|*.csv";
+            openFileDialog.FilterIndex = 0;
+            openFileDialog.RestoreDirectory = true;
+
+            if (openFileDialog.ShowDialog() == true)
             {
-                
-                
-                    Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
-                    openFileDialog.InitialDirectory = "c:\\";
-                    openFileDialog.Filter = "CSV files (Comma delimited) | *.csv";
-                    openFileDialog.FilterIndex = 0;
-                    openFileDialog.RestoreDirectory = true;
-                    openFileDialog.ShowDialog();
-
-                    if (openFileDialog.FileName != null)
-                    {
-                        var filename = openFileDialog.FileName;
-                        if (filename != null && filename != string.Empty)
-                        {
-                            Debug.WriteLine(filename);
-                            CsvConfiguration config = new CsvConfiguration(CultureInfo.InvariantCulture)
-                            {
-                                HasHeaderRecord = true,
-                                HeaderValidated = null,
-                                MissingFieldFound = null,
-                            };
-
-                            try
-                            {
-                                using (var reader = new StreamReader(filename, true))
-                                using (var csv = new CsvReader(reader, config))
-                                {
-                                    Main_ItemsList.Items.Clear();
-                                    PresentationItems = new List<PresentationItem>();
-                                    csv.Read(); // read the header row
-
-                                    while (csv.Read())
-                                    {
-                                        var number = csv.GetField<string>(0);
-                                        var title = csv.GetField<string>(1);
-                                        var notes = csv.GetField<string>(2);
-                                        PresentationItems.Add(new PresentationItem(number, title, notes));
-                                    }
-
-                                    foreach (var item in PresentationItems)
-                                    {
-                                        Main_ItemsList.Items.Add(item);
-
-                                    }
-                                    if (ImportPanel.Visibility == Visibility.Visible)
-                                    {
-                                        ImportPanel.Visibility = Visibility.Collapsed;
-                                        MainContent.Visibility = Visibility.Visible;
-                                    };
-
-                                    if (PresentationItems == null)
-                                    {
-                                        Debug.WriteLine("PresentationItems is null");
-                                    }
-                                    else
-                                    {
-                                        Debug.WriteLine("PresentationItems is not null");
-                                    }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"Error: {ex.Message}");
-                                // handle the error here
-                                Xceed.Wpf.Toolkit.MessageBox.Show("The file doesn't comform to the expected format - please verity the file");
-                            }
-
-                        }
-                    }
-                
-
+                LoadTitleFile(openFileDialog.FileName);
             }
-           
+        }
+
+        //Reads the whole file before touching the list, so a bad file leaves the current titles in place
+        private void LoadTitleFile(string filename)
+        {
+            Debug.WriteLine(filename);
+            List<PresentationItem> items;
+            try
+            {
+                items = TitleFileReader.Read(filename);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Debug.WriteLine($"Error: {ex.Message}");
+                Xceed.Wpf.Toolkit.MessageBox.Show($"The file couldn't be opened - {ex.Message}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error: {ex.Message}");
+                Xceed.Wpf.Toolkit.MessageBox.Show("The file doesn't conform to the expected format - please verify the file");
+                return;
+            }
+
+            if (items.Count == 0)
+            {
+                Xceed.Wpf.Toolkit.MessageBox.Show("The file doesn't contain any titles - please verify the file");
+                return;
+            }
+
+            PresentationItems = items;
+            Main_ItemsList.Items.Clear();
+            foreach (var item in PresentationItems)
+            {
+                Main_ItemsList.Items.Add(item);
+            }
+
+            if (ImportPanel.Visibility == Visibility.Visible)
+            {
+                ImportPanel.Visibility = Visibility.Collapsed;
+                MainContent.Visibility = Visibility.Visible;
+            }
         }
 
         private void closePresentationWindow()
@@ -227,7 +200,13 @@ namespace Prosenter
         {
             //write the Notes from PresentationItems into Main_Notes when the item with the corresponding Title is selected in the listview
             var selected = Main_ItemsList.SelectedItem as PresentationItem;
-            Main_Notes.Text = selected.Notes;
+            Main_Notes.Text = selected?.Notes ?? string.Empty;
+
+            //keep the title on screen in step with the list, including when a title is clicked
+            if (status == "Started" || status == "Paused")
+            {
+                TitleSwitch();
+            }
         }
 
         private void Main_NotesSize_ValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -241,75 +220,17 @@ namespace Prosenter
 
         private void Window_Drop(object sender, System.Windows.DragEventArgs e)
         {
-            if (status == "Stopped")
-            {
-
-                if (e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
-                {
-                    string[] files = (string[])e.Data.GetData(System.Windows.DataFormats.FileDrop);
-                    foreach (string file in files)
-                    {
-                        Debug.WriteLine(file);
-                        CsvConfiguration config = new CsvConfiguration(CultureInfo.InvariantCulture)
-                        {
-                            HasHeaderRecord = true,
-                            HeaderValidated = null,
-                            MissingFieldFound = null,
-                        };
-
-                        try
-                        {
-                            using (var reader = new StreamReader(file, true))
-                            using (var csv = new CsvReader(reader, config))
-                            {
-                                Main_ItemsList.Items.Clear();
-                                PresentationItems = new List<PresentationItem>();
-                                csv.Read(); // read the header row
-
-                                while (csv.Read())
-                                {
-                                    var number = csv.GetField<string>(0);
-                                    var title = csv.GetField<string>(1);
-                                    var notes = csv.GetField<string>(2);
-                                    PresentationItems.Add(new PresentationItem(number, title, notes));
-                                }
-
-                                foreach (var item in PresentationItems)
-                                {
-                                    Main_ItemsList.Items.Add(item);
-                                }
-
-                                if (PresentationItems == null)
-                                {
-                                    Debug.WriteLine("PresentationItems is null");
-                                }
-                                else
-                                {
-                                    Debug.WriteLine("PresentationItems is not null");
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error: {ex.Message}");
-                            // handle the error here
-                            Xceed.Wpf.Toolkit.MessageBox.Show("The file doesn't comform to the expected format - please verity the file");
-                        }
-                    }
-                }
-            }
-            else
+            if (status != "Stopped")
             {
                 Xceed.Wpf.Toolkit.MessageBox.Show("Please stop the presentation before loading a new file");
-            };
+                return;
+            }
 
-            if (ImportPanel.Visibility == Visibility.Visible)
+            if (e.Data.GetData(System.Windows.DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
-                ImportPanel.Visibility = Visibility.Collapsed;
-                MainContent.Visibility = Visibility.Visible;
-            };
-        
-}
+                LoadTitleFile(files[0]);
+            }
+        }
 
         public void ReportIssue(object sender, RoutedEventArgs e)
         {

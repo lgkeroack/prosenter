@@ -106,17 +106,27 @@ namespace Prosenter
 
         public void TitleSwitch()
         {
-            if (PresentationWindow != null && PresentationItems != null)
+            if (PresentationWindow == null)
             {
-                PresentationWindow.Presentation_Number.Text = PresentationItems[Main_ItemsList.SelectedIndex].Number;
-                PresentationWindow.Presentation_Text.Text = PresentationItems[Main_ItemsList.SelectedIndex].Title;
+                return;
             }
 
-            if (PresentationItems == null)
+            if (PresentationItems == null || PresentationItems.Count == 0)
             {//display a message to the user that warns them no items are available to show
                 PresentationWindow.Presentation_Number.Text = "No Items";
                 PresentationWindow.Presentation_Text.Text = "No Items";
+                return;
             }
+
+            //nothing selected (e.g. CTRL + click on the selected title): keep the current title on screen
+            var index = Main_ItemsList.SelectedIndex;
+            if (index < 0 || index >= PresentationItems.Count)
+            {
+                return;
+            }
+
+            PresentationWindow.Presentation_Number.Text = PresentationItems[index].Number;
+            PresentationWindow.Presentation_Text.Text = PresentationItems[index].Title;
         }
 
 
